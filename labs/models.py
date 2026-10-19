@@ -158,6 +158,17 @@ class InventoryItem(models.Model):
     last_checked = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
+    # Traceability for retirement specifically (not just "last updated") —
+    # set automatically by inventory_status_update() the moment status
+    # flips to 'retired', cleared if it's ever un-retired. Lets a Retired
+    # item's detail page/audit trail show who pulled it and why, instead of
+    # a bare status pill with no history behind it.
+    retired_at = models.DateTimeField(null=True, blank=True)
+    retired_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='retired_inventory_items'
+    )
+    retirement_reason = models.CharField(max_length=255, blank=True, default='')
 
     def __str__(self):
         return self.name

@@ -1,0 +1,78 @@
+{% extends base_template|default:"base.html" %}
+{% block title %}My issue reports{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>My issue reports</h1>
+    <div class="sub">
+      {{ total_count }} report{{ total_count|pluralize }} ·
+      {{ status_counts.open }} open ·
+      {{ status_counts.assigned }} assigned ·
+      {{ status_counts.in_progress }} in progress ·
+      {{ status_counts.resolved }} resolved
+    </div>
+  </div>
+  <a href="{% url 'issue_create' %}" class="action-btn primary js-modal-link"><svg class="btn-icon"><use href="#icon-plus"/></svg>Report an issue</a>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center">
+    <a href="{% url 'my_issues' %}" class="action-btn small {% if not selected_status %}primary{% endif %}">All</a>
+    {% for code, label, count in status_filters %}
+      <a href="?status={{ code }}" class="action-btn small {% if selected_status == code %}primary{% endif %}">{{ label }} ({{ count }})</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  {% if issues %}
+  <div class="js-bulk-delete" data-select-reveal data-item-label="report" data-confirm-text="The selected reports will be removed from your list. Admin and Lab In-Charge will still keep a record of them.">
+  <form method="post" action="{% url 'my_issues_bulk_delete' %}" class="js-bulk-delete-form">{% csrf_token %}</form>
+  {% include "partials/bulk_select_all.html" %}
+  {% include "partials/bulk_delete_toolbar.html" %}
+  {% endif %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="bulk-select-col"></th>
+        <th>Title</th>
+        <th>Lab</th>
+        <th>Type</th>
+        <th>Priority</th>
+        <th>Status</th>
+        <th>Assigned to</th>
+        <th>Reported</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for issue in issues %}
+        <tr>
+          <td class="bulk-select-col"><input type="checkbox" class="js-row-check" value="{{ issue.pk }}"></td>
+          <td>{{ issue.title }}</td>
+          <td>{{ issue.lab.name }}{% if issue.pc %} · {{ issue.pc.pc_id }}{% endif %}</td>
+          <td>{{ issue.get_issue_type_display }}</td>
+          <td><span class="status-pill pill-{{ issue.priority }}">{{ issue.get_priority_display }}</span></td>
+          <td><span class="status-pill pill-{{ issue.status }}">{{ issue.get_status_display }}</span></td>
+          <td>{{ issue.assigned_technician.display_name|default:"—" }}</td>
+          <td>{{ issue.created_at|timesince }} ago</td>
+          <td style="white-space:nowrap">
+            <a href="{% url 'my_issue_detail' issue.pk %}" class="action-btn small js-modal-link"><svg class="btn-icon"><use href="#icon-eye"/></svg> View</a>
+            <form method="post" action="{% url 'my_issue_delete' issue.pk %}" style="display:inline"
+                  onsubmit="event.preventDefault(); compulabConfirmSubmit(this, {title: 'Delete this report?', text: 'It will be removed from your list. Admin and Lab In-Charge will still keep a record of it.', icon: 'warning', confirmButtonText: 'Yes, delete', confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--red').trim()}); return false;">
+              {% csrf_token %}
+              <button type="submit" class="action-btn small danger"><svg class="btn-icon"><use href="#icon-trash"/></svg> Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="9"><p class="empty">{% if selected_status %}No reports with this status.{% else %}You haven't reported any issues yet.{% endif %}</p></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if issues %}</div>{% endif %}
+</div>
+
+{% endblock %}

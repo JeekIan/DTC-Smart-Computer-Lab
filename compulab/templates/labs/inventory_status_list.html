@@ -8,6 +8,7 @@
     <h1>Equipment status</h1>
     <div class="sub">{{ items|length }} items</div>
   </div>
+  <a href="{% url 'inventory' %}?status=retired" class="action-btn"><svg class="btn-icon"><use href="#icon-eye"/></svg> View all retired</a>
   <a href="{% url 'inventory' %}" class="action-btn"><svg class="btn-icon"><use href="#icon-arrow-left"/></svg> Back</a>
 </div>
 
@@ -24,7 +25,7 @@
           <td><span class="status-pill pill-{{ item.status }}">{{ item.get_status_display }}</span></td>
           {% if request.user.role == 'admin' or request.user.role == 'incharge' %}
             <td style="white-space:nowrap">
-              <form method="post" action="{% url 'inventory_status_update' item.pk %}" style="display:flex; gap:6px;"
+              <form method="post" action="{% url 'inventory_status_update' item.pk %}" style="display:flex; gap:6px; flex-wrap:wrap;"
                     onsubmit="event.preventDefault(); compulabConfirmSubmit(this, {title: 'Update item status?', text: 'The status of this inventory item will be changed.', icon: 'question', confirmButtonText: 'Yes, update', confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--green').trim()}); return false;">
                 {% csrf_token %}
                 <select name="status" class="form-control" style="width:auto; padding:6px 10px; font-size:12.5px;">
@@ -32,6 +33,7 @@
                   <option value="under_repair" {% if item.status == 'under_repair' %}selected{% endif %}>Under Repair</option>
                   <option value="retired" {% if item.status == 'retired' %}selected{% endif %}>Retired</option>
                 </select>
+                <input type="text" name="reason" placeholder="Reason (if retiring)" class="form-control" style="width:150px; padding:6px 10px; font-size:12.5px;">
                 <button type="submit" class="action-btn small primary"><svg class="btn-icon"><use href="#icon-edit"/></svg> Update</button>
               </form>
             </td>

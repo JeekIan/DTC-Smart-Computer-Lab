@@ -1,0 +1,48 @@
+{% extends base_template|default:"base.html" %}
+{% block title %}{{ issue.title }}{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>{{ issue.title }}</h1>
+    <div class="sub">{{ issue.lab.name }}{% if issue.pc %} · {{ issue.pc.pc_id }}{% endif %}</div>
+  </div>
+  <span class="status-pill pill-{{ issue.status }}">{{ issue.get_status_display }}</span>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <div class="section-title">Details</div>
+    <table class="table">
+      <tr><td>Type</td><td>{{ issue.get_issue_type_display }}</td></tr>
+      <tr><td>Priority</td><td><span class="status-pill pill-{{ issue.priority }}">{{ issue.get_priority_display }}</span></td></tr>
+      <tr><td>Status</td><td><span class="status-pill pill-{{ issue.status }}">{{ issue.get_status_display }}</span></td></tr>
+      <tr><td>Assigned to</td><td>{{ issue.assigned_technician.display_name|default:"Not yet assigned" }}</td></tr>
+      <tr><td>Reported</td><td>{{ issue.created_at|date:"M d, Y H:i" }}</td></tr>
+      {% if issue.resolved_at %}
+        <tr><td>Resolved</td><td>{{ issue.resolved_at|date:"M d, Y H:i" }}</td></tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Your description</div>
+    <p style="font-size:13px; line-height:1.6; color:#444">{{ issue.description|default:"No description provided."|linebreaks }}</p>
+    {% if issue.status == 'resolved' %}
+      <div class="section-title" style="margin-top:16px">Resolution</div>
+      <p style="font-size:13px; line-height:1.6; color:#444">{{ issue.resolution_notes|default:"—"|linebreaks }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <a href="{% url 'my_issues' %}" class="action-btn"><svg class="btn-icon"><use href="#icon-arrow-left"/></svg> Back to my reports</a>
+  <form method="post" action="{% url 'my_issue_delete' issue.pk %}" style="display:inline"
+        onsubmit="event.preventDefault(); compulabConfirmSubmit(this, {title: 'Delete this report?', text: 'It will be removed from your list. Admin and Lab In-Charge will still keep a record of it.', icon: 'warning', confirmButtonText: 'Yes, delete', confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--red').trim()}); return false;">
+    {% csrf_token %}
+    <button type="submit" class="action-btn danger"><svg class="btn-icon"><use href="#icon-trash"/></svg> Delete report</button>
+  </form>
+</div>
+
+{% endblock %}

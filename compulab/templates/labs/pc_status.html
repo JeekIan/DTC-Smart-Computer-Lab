@@ -178,6 +178,9 @@ html[data-theme="light"] .ld-page-btn.active{ color:#fff; }
   .ld-section-title{ font-size:11px; }
   .ld-table{ font-size:10.5px; }
 }
+.pc-selectall{display:inline-flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; margin:0 0 10px; user-select:none;}
+.pc-selectall input{width:16px; height:16px; cursor:pointer;}
+#pcTable:not(.sel-active) .pc-select-col{display:none;}
 </style>
 
 <div class="ld">
@@ -402,7 +405,8 @@ html[data-theme="light"] .ld-page-btn.active{ color:#fff; }
         </div>
       {% endif %}
       {% if page_obj.object_list %}
-        <div id="bulkPowerBar" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+        <label class="pc-selectall"><input type="checkbox" id="selectAllPCs" onclick="toggleAllPCs(this)"> Select all</label>
+        <div id="bulkPowerBar" style="display:none; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
           <span id="bulkSelectedCount" style="font-size:12px; color:var(--ld-dim);">0 selected</span>
           <button type="button" class="ld-btn" onclick="submitBulkPower('lock')">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px; margin-right:3px;"><use href="#icon-lock"/></svg> Lock Selected
@@ -413,7 +417,6 @@ html[data-theme="light"] .ld-page-btn.active{ color:#fff; }
           <button type="button" class="ld-btn" style="color:var(--ld-red);" onclick="submitBulkPower('shutdown')">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px; margin-right:3px;"><use href="#icon-power"/></svg> Shutdown Selected
           </button>
-          <span style="font-size:11px; color:var(--ld-faint);">Tip: check the header box to select every PC on this page.</span>
         </div>
         <form method="post" action="{% url 'pc_bulk_power_action' %}" id="bulkPowerForm">
           {% csrf_token %}
@@ -421,10 +424,10 @@ html[data-theme="light"] .ld-page-btn.active{ color:#fff; }
           <input type="hidden" name="pc_ids" id="bulkPcIdsField" value="">
         </form>
         <div class="ld-table-bleed">
-        <table class="ld-table">
+        <table class="ld-table" id="pcTable">
           <thead>
             <tr>
-              <th><input type="checkbox" id="selectAllPCs" onclick="toggleAllPCs(this)"></th>
+              <th class="pc-select-col"></th>
               <th>PC ID</th><th>Laboratory</th><th>Status</th><th>Current User</th>
               <th>Reservation Type</th><th>Login Time</th><th>Duration</th><th>Last Active</th><th>Actions</th>
             </tr>
@@ -432,7 +435,7 @@ html[data-theme="light"] .ld-page-btn.active{ color:#fff; }
           <tbody>
             {% for pc in page_obj.object_list %}
               <tr data-pc="{{ pc.pc_id }}">
-                <td>{% if pc.ip_address %}<input type="checkbox" class="pc-select-checkbox" value="{{ pc.pk }}" onchange="updateBulkCount()">{% endif %}</td>
+                <td class="pc-select-col">{% if pc.ip_address %}<input type="checkbox" class="pc-select-checkbox" value="{{ pc.pk }}" onchange="updateBulkCount()">{% endif %}</td>
                 <td>{{ pc.pc_id }}</td>
                 <td>{{ pc.lab.name }}{% if pc.lab_id in closed_lab_ids %} <span class="lab-closed-pill" title="Outside this lab's operating hours">Closed</span>{% endif %}</td>
                 <td><span class="ld-pill {{ pc.status }}" data-role="status-pill">{{ pc.get_status_display }}</span></td>
@@ -613,11 +616,27 @@ function getSelectedPcIds() {
 }
 
 function updateBulkCount() {
+  var n = getSelectedPcIds().length;
   var el = document.getElementById('bulkSelectedCount');
-  if (el) el.textContent = getSelectedPcIds().length + ' selected';
+  if (el) el.textContent = n + ' selected';
+  var bar = document.getElementById('bulkPowerBar');
+  var table = document.getElementById('pcTable');
+  var master = document.getElementById('selectAllPCs');
+  var all = document.querySelectorAll('.pc-select-checkbox').length;
+  // Nothing selected any more -> hide the checkboxes and the action bar again.
+  if (n === 0 && table) table.classList.remove('sel-active');
+  if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
+  if (master) {
+    master.checked = all > 0 && n === all;
+    master.indeterminate = n > 0 && n < all;
+  }
 }
 
+// The row checkboxes stay hidden until "Select all" is ticked; then every
+// PC is checked and the boxes appear so individual PCs can be unticked.
 function toggleAllPCs(master) {
+  var table = document.getElementById('pcTable');
+  if (table) table.classList.toggle('sel-active', master.checked);
   document.querySelectorAll('.pc-select-checkbox').forEach(function (cb) { cb.checked = master.checked; });
   updateBulkCount();
 }
@@ -627,7 +646,7 @@ function submitBulkPower(action) {
   if (ids.length === 0) {
     Swal.fire({
       title: 'No PCs selected',
-      text: 'Check at least one PC first, or check the header box to select all.',
+      text: 'Tick Select all first, then choose the PCs you want.',
       icon: 'info',
       background: (typeof theme !== 'undefined' ? theme.background : undefined),
       color: (typeof theme !== 'undefined' ? theme.color : undefined),

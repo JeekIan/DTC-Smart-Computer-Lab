@@ -181,15 +181,16 @@ html[data-theme="light"] .cr-pagination span.cr-page.current{ color:#fff; }
 
   <div class="cr-card">
     {% if request.user.role == 'admin' or request.user.role == 'incharge' %}
-    <div class="js-bulk-delete" data-item-label="roster">
+    <div class="js-bulk-delete" data-select-reveal data-item-label="roster">
     <form method="post" action="{% url 'rosters_bulk_delete' %}" class="js-bulk-delete-form">{% csrf_token %}</form>
+    {% include "partials/bulk_select_all.html" %}
     {% include "partials/bulk_delete_toolbar.html" %}
     {% endif %}
     <table class="cr-table">
       <thead>
         <tr>
           {% if request.user.role == 'admin' or request.user.role == 'incharge' %}
-          <th class="bulk-select-col"><input type="checkbox" class="js-select-all"></th>
+          <th class="bulk-select-col"></th>
           {% endif %}
           <th>Roster Name</th><th>Course & Section</th><th>Instructor</th>
           <th>Semester / A.Y.</th><th>Students</th><th>Status</th><th>Approval</th><th>Actions</th>

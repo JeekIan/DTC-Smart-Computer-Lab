@@ -1382,6 +1382,7 @@ def roster_add_student(request, pk):
             _, created = RosterStudent.objects.get_or_create(roster=roster, student=student)
             if created:
                 messages.success(request, f'Added {student.display_name} to the roster.')
+                notify_service.notify_student_added_to_roster(roster, student)
             else:
                 messages.error(request, f'{student.display_name} is already on this roster.')
         else:
@@ -1459,6 +1460,7 @@ def roster_import_students(request, pk):
                         RosterStudent.objects.create(roster=roster, student=student)
                         already_on_roster.add(student.pk)
                         added.append({'row': i, 'id_number': id_number, 'name': student.display_name})
+                        notify_service.notify_student_added_to_roster(roster, student)
 
                     if added:
                         messages.success(request, f'Added {len(added)} student{"s" if len(added) != 1 else ""} to the roster.')

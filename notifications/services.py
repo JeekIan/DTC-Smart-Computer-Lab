@@ -33,6 +33,7 @@ SETTING_FIELD_BY_TYPE = {
     'roster_submitted': 'reservation_notifications',
     'roster_approved': 'reservation_notifications',
     'roster_rejected': 'reservation_notifications',
+    'roster_student_added': 'reservation_notifications',
     'session_reminder': 'session_reminders',
     'pc_offline': 'pc_status_alerts',
     'pc_online': 'pc_status_alerts',
@@ -204,7 +205,10 @@ def notify_roster_session_scheduled(session, code):
     """Sent 1 hour before a roster-auto-generated Session starts (see
     notifications.reminders.check_roster_code_reminders) — this is how the
     instructor learns the reservation code for that specific date, since
-    they never filed an individual request for it."""
+    they never filed an individual request for it. Every enrolled student
+    on that roster with a Gmail on file gets the same reservation code
+    emailed to them directly too (no in-app Notification for them, since
+    Students never log into the dashboard to see one)."""
     recipients = []
     if session.instructor:
         recipients.append(session.instructor)
@@ -223,6 +227,18 @@ def notify_roster_session_scheduled(session, code):
             session.start_time.strftime("%H:%M"),
             code,
         )
+        if session.roster_id:
+            roster_students = session.roster.students.exclude(student__isnull=True).select_related('student')
+            for roster_student in roster_students:
+                student = roster_student.student
+                if student and student.email:
+                    _send_reservation_code_email(
+                        student, 'Upcoming class session — reservation code',
+                        'This class starts soon — from your class roster schedule.',
+                        session.subject, session.lab.name, session.date,
+                        session.start_time.strftime("%H:%M"),
+                        code,
+                    )
 
 
 def notify_roster_submitted(roster):
@@ -264,6 +280,26 @@ def notify_roster_rejected(roster):
         'Class roster rejected',
         message,
         'roster_rejected', lab=roster.lab,
+    )
+
+
+def notify_student_added_to_roster(roster, student):
+    """Sent the moment a Student gets added to a Class Roster (from the
+    search-and-add box or the bulk Import Students flow) — lets them know
+    which class they're now enrolled in, and its lab/schedule, ahead of
+    the per-session reservation-code reminder (see
+    notify_roster_session_scheduled). No-ops quietly for a student with
+    no Gmail on file, same as every other auto notification here."""
+    lab_name = roster.lab.name if roster.lab else 'a lab'
+    schedule = f' Schedule: {roster.schedule}.' if roster.schedule else ''
+    notify(
+        [student],
+        'Added to a class roster',
+        f'You were added to "{roster.name}" in {lab_name}'
+        f'{f" by {roster.instructor.get_full_name()}" if roster.instructor else ""}.'
+        f'{schedule} Reservation codes for upcoming sessions will be emailed here '
+        f'about an hour before each class.',
+        'roster_student_added', lab=roster.lab,
     )
 
 
@@ -357,6 +393,56 @@ def notify_equipment_issue_resolved(issue):
         'Equipment issue resolved',
         f'{issue.equipment.name} in {issue.equipment.lab.name} has been repaired/resolved.',
         'maintenance_completed', lab=issue.equipment.lab,
+    )
+
+
+# ---------------------------------------------------------------- #
+# Issue reports (issues app)
+# ---------------------------------------------------------------- #
+
+def notify_issue_reported(issue, reporter=None):
+    """A new issue was logged. Goes to the Lab In-Charge of THAT lab (via
+    incharge_for_lab) plus all Admins -- not just Admins. The reporter is
+    left out so an Admin/In-Charge who logs an issue themselves doesn't get
+    an alert about their own report."""
+    reporter = reporter or issue.reported_by
+    where = f'{issue.lab.name} \u2014 {issue.pc.pc_id}' if issue.pc else f'{issue.lab.name} (general lab issue)'
+    lines = [
+        f'Reported by {reporter.display_name} ({reporter.get_role_display()}) at {where}.' if reporter
+        else f'Reported at {where}.',
+        f'Type: {issue.get_issue_type_display()} \u00b7 Priority: {issue.get_priority_display()}',
+    ]
+    if (issue.description or '').strip():
+        lines.append(issue.description.strip())
+    recipients = [u for u in _lab_recipients(issue.lab) if not reporter or u.pk != reporter.pk]
+    notify(
+        recipients,
+        f'New issue: {issue.title}',
+        '\n'.join(lines),
+        'issue_reported', lab=issue.lab,
+    )
+
+
+def notify_issue_status_changed(issue, actor=None):
+    """Tell whoever reported the issue (normally an Instructor) that its
+    status changed -- Assigned, In Progress or Resolved. No-ops when there
+    is no reporter (account deleted) or when the reporter is the one who
+    made the change."""
+    reporter = issue.reported_by
+    if reporter is None or issue.hidden_by_reporter or (actor is not None and reporter.pk == actor.pk):
+        return []
+    status_label = issue.get_status_display()
+    lines = [f'Your report "{issue.title}" ({issue.lab.name}) is now: {status_label}.']
+    if issue.status == 'assigned' and issue.assigned_technician:
+        lines.append(f'Assigned to {issue.assigned_technician.display_name}.')
+    if issue.status == 'resolved' and (issue.resolution_notes or '').strip():
+        lines.append(f'Resolution: {issue.resolution_notes.strip()}')
+    if issue.status == 'resolved':
+        title, n_type = f'Issue resolved: {issue.title}', 'issue_resolved'
+    else:
+        title, n_type = f'Issue update: {issue.title} is {status_label}', 'issue_status_changed'
+    return notify(
+        [reporter], title, '\n'.join(lines), n_type, lab=issue.lab,
     )
 
 

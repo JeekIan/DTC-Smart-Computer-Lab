@@ -12,9 +12,16 @@
 </div>
 
 <div class="card">
+  {% if issues %}
+  <div class="js-bulk-delete" data-select-reveal data-item-label="issue">
+  <form method="post" action="{% url 'issues_bulk_delete' %}" class="js-bulk-delete-form">{% csrf_token %}</form>
+  {% include "partials/bulk_select_all.html" %}
+  {% include "partials/bulk_delete_toolbar.html" %}
+  {% endif %}
   <table class="table">
     <thead>
       <tr>
+        <th class="bulk-select-col"></th>
         <th>Title</th>
         <th>PC / Lab</th>
         <th>Type</th>
@@ -28,6 +35,7 @@
     <tbody>
       {% for issue in issues %}
         <tr>
+          <td class="bulk-select-col"><input type="checkbox" class="js-row-check" value="{{ issue.pk }}"></td>
           <td>{{ issue.title }}</td>
           <td>{{ issue.pc.pc_id|default:"—" }} · {{ issue.lab.name }}</td>
           <td>{{ issue.get_issue_type_display }}</td>
@@ -35,13 +43,21 @@
           <td><span class="status-pill pill-{{ issue.status }}">{{ issue.get_status_display }}</span></td>
           <td>{{ issue.reported_by.get_full_name|default:"—" }}</td>
           <td>{{ issue.created_at|timesince }} ago</td>
-          <td><a href="{% url 'issue_detail' issue.pk %}" class="action-btn small js-modal-link"><svg class="btn-icon"><use href="#icon-eye"/></svg> View</a></td>
+          <td style="white-space:nowrap">
+            <a href="{% url 'issue_detail' issue.pk %}" class="action-btn small js-modal-link"><svg class="btn-icon"><use href="#icon-eye"/></svg> View</a>
+            <form method="post" action="{% url 'issue_delete' issue.pk %}" style="display:inline"
+                  onsubmit="event.preventDefault(); compulabConfirmSubmit(this, {title: 'Delete this issue?', text: 'This permanently deletes the issue. The instructor who reported it will no longer see it either. This cannot be undone.', icon: 'warning', confirmButtonText: 'Yes, delete', confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--red').trim()}); return false;">
+              {% csrf_token %}
+              <button type="submit" class="action-btn small danger"><svg class="btn-icon"><use href="#icon-trash"/></svg> Delete</button>
+            </form>
+          </td>
         </tr>
       {% empty %}
-        <tr><td colspan="8"><p class="empty">No issues logged.</p></td></tr>
+        <tr><td colspan="9"><p class="empty">No issues logged.</p></td></tr>
       {% endfor %}
     </tbody>
   </table>
+  {% if issues %}</div>{% endif %}
 </div>
 
 {% endblock %}

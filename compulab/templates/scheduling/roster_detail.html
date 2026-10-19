@@ -59,6 +59,7 @@
 .ic-orange{background:linear-gradient(160deg, color-mix(in srgb, var(--cr-orange) 30%, white) 0%, color-mix(in srgb, var(--cr-orange) 60%, white) 55%, color-mix(in srgb, var(--cr-orange) 85%, black 10%) 100%); box-shadow:inset 0 -3px 0 color-mix(in srgb, var(--cr-orange) 90%, black 18%), inset 0 1px 0 rgba(255,255,255,.3), 0 3px 6px rgba(0,0,0,.18); color:color-mix(in srgb, var(--cr-orange) 55%, black 35%);}
 
 .cr-two-col{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-bottom:16px; align-items:start;}
+.cr-card-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
 .cr-section-title{font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--cr-text); margin-bottom:14px; display:flex; align-items:center; gap:8px;}
 .cr-section-title .count{font-size:11px; font-weight:600; color:var(--cr-dim); background:var(--cr-bg); border:1px solid var(--cr-border); border-radius:20px; padding:1px 9px;}
 
@@ -224,9 +225,15 @@ html[data-theme="light"] .cr-add-btn{ color:#fff; }
     </div>
   </div>
 
-  <div class="cr-two-col">
+  <div style="margin-bottom:16px;">
     <div class="cr-card">
-      <div class="cr-section-title">Students List<span class="count">{{ students|length }}</span></div>
+      <div class="cr-card-head">
+        <div class="cr-section-title" style="margin-bottom:0;">Students List<span class="count">{{ students|length }}</span></div>
+        <button type="button" class="cr-btn primary" id="cr-open-add-student">
+          <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add Student
+        </button>
+      </div>
       <div class="cr-search-wrap">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <input type="text" id="cr-roster-search" class="cr-input" placeholder="Search student…" autocomplete="off">
@@ -257,9 +264,13 @@ html[data-theme="light"] .cr-add-btn{ color:#fff; }
       </table>
       </div>
     </div>
+  </div>
 
-    <div class="cr-card">
-      <div class="cr-section-title">Add Student</div>
+  {# Add Student modal (opened from the Students List header) #}
+  <div class="app-modal-backdrop" id="cr-add-student-modal">
+    <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="cr-add-student-title" tabindex="-1">
+      <button type="button" class="app-modal-close" id="cr-close-add-student" aria-label="Close">&times;</button>
+      <div class="cr-section-title" id="cr-add-student-title">Add Student</div>
       <p class="helptext" style="font-size:12px; color:var(--cr-dim); margin-top:-6px; margin-bottom:12px;">Search by ID or name. Only students registered by an Admin (under Users) will appear.</p>
       <div class="cr-search-wrap">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -388,6 +399,29 @@ html[data-theme="light"] .cr-add-btn{ color:#fff; }
       rows.forEach(function (row) {
         row.style.display = row.dataset.search.includes(q) ? '' : 'none';
       });
+    });
+  }
+
+  // ---- Add Student modal ----
+  const addModal = document.getElementById('cr-add-student-modal');
+  const openAddBtn = document.getElementById('cr-open-add-student');
+  function openAddModal() {
+    addModal.classList.add('open');
+    setTimeout(function () { document.getElementById('roster-student-search').focus(); }, 50);
+  }
+  function closeAddModal() {
+    addModal.classList.remove('open');
+    document.getElementById('roster-student-search').value = '';
+    document.getElementById('roster-student-results').innerHTML = '';
+  }
+  if (openAddBtn && addModal) {
+    // park the modal on <body> so no page container can clip or offset it
+    document.body.appendChild(addModal);
+    openAddBtn.addEventListener('click', openAddModal);
+    document.getElementById('cr-close-add-student').addEventListener('click', closeAddModal);
+    addModal.addEventListener('mousedown', function (e) { if (e.target === addModal) closeAddModal(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && addModal.classList.contains('open') && !document.querySelector('.swal2-container')) closeAddModal();
     });
   }
 

@@ -410,6 +410,80 @@
     .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
     .toolbar-stats { display: flex; gap: 18px; font-size: 12px; color: var(--text-dim); }
     .toolbar-stats b { color: var(--text); font-size: 14px; }
+  
+    /* =====================================================================
+       MOBILE FIX LAYER — keep this LAST in the main <style>.
+       The earlier phone rules in this file sit BEFORE the desktop rules for
+       the same classes (e.g. .two-col), so on equal specificity the desktop
+       rule won and the layout never collapsed on a phone. Rules here come
+       last and use !important where a page's own <style>/inline style would
+       otherwise win.
+    ===================================================================== */
+    @media (max-width: 768px) {
+      /* full-bleed page wrappers (.ld/.um/.ml/.cr) cancel the content padding with a negative margin — keep them equal to .content's 14px */
+      .content { padding: 14px !important; }
+      .ld, .um, .ml, .cr { margin: -14px !important; padding: 14px !important; max-width: none !important; }
+      .content > * { min-width: 0; max-width: 100%; }
+      .content img, .content canvas, .content video { max-width: 100%; height: auto; }
+
+      /* two-column / side-by-side layouts stack */
+      .two-col, .three-col { grid-template-columns: 1fr !important; }
+
+      /* page title + action buttons: stack, buttons left-aligned & wrapping */
+      .page-header { flex-direction: column; align-items: stretch !important; justify-content: flex-start !important; gap: 10px; }
+      .page-header > * { min-width: 0; max-width: 100%; }
+      .page-header > div:not(:first-child),
+      .page-header > a, .page-header > form {
+        display: flex !important; flex-wrap: wrap !important; gap: 8px !important;
+        justify-content: flex-start !important; width: 100%;
+      }
+      .page-header > div:not(:first-child) > * { max-width: 100%; }
+
+      /* every table scrolls inside its own box instead of pushing the page wide */
+      .content table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      /* known multi-column blocks that never collapsed */
+      .ic2-cols, .ml-row-main, .vs-filter-form, .pal-filters-grid { grid-template-columns: 1fr !important; }
+      .ic2-metrics { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+      .ic2-panel { min-width: 0; overflow-x: auto; padding: 14px !important; }
+      .ml-grid { grid-template-columns: 1fr !important; }
+      .ra-row4 { grid-template-columns: 1fr !important; }
+      .ra-report-grid { grid-template-columns: 1fr 1fr !important; }
+
+      .is-metric-body { min-width: 0; }
+      .is-metric-label { font-size: 11px; overflow-wrap: break-word; }
+      .pal-layout { max-width: 100%; min-width: 0; }
+      .pal-layout > * { min-width: 0; max-width: 100%; }
+      .ld-filter-form, .ml-filter-form { grid-template-columns: 1fr !important; }
+
+      /* dashboard cards + activity/notification feeds: never wider than the screen,
+         and the "5 minutes ago" stamp drops under the text instead of being cut off */
+      .ld-row-2, .ld-row-3 { grid-template-columns: minmax(0, 1fr) !important; }
+      .ld-card { min-width: 0; max-width: 100%; overflow: hidden; }
+      .ld-feed-item { flex-wrap: wrap; }
+      .ld-feed-time { flex: 0 0 100%; margin-left: 40px !important; padding-top: 0 !important; white-space: normal !important; }
+      .ld-feed-title, .ld-feed-sub { overflow-wrap: anywhere; }
+      /* last card never sits flush against the footer */
+      .content { padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important; }
+      .ls-today-row, .ls-row { grid-template-columns: 1fr 1fr !important; }
+      .ra-bar-label { overflow-wrap: anywhere; }
+    }
+    @media (max-width: 480px) {
+      .ra-report-grid { grid-template-columns: 1fr !important; }
+    }
+  
+    /* Mobile browsers: 100vh is the height WITH the URL bar hidden, so the
+       bottom of the page (footer, sidebar Log out) sat behind the toolbar.
+       100dvh follows the visible area; a small script below sets exact px
+       for older Android browsers that don't know dvh. */
+    @supports (height: 100dvh) {
+      .app { height: 100dvh; }
+      @media (max-width: 768px) { .sidebar { height: 100dvh; } }
+    }
+    @media (max-width: 768px) {
+      .sidebar .nav { padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+      .app-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    }
   </style>
 </head>
 <body>
@@ -552,6 +626,8 @@ div:where(.swal2-container) div:where(.swal2-popup){
 .bulk-toolbar .bulk-delete-btn:hover{ opacity:.9; }
 .bulk-toolbar .bulk-delete-btn svg{ width:14px; height:14px; }
 .bulk-select-col{ width:34px; }
+.js-bulk-delete[data-select-reveal]:not(.sel-active) .js-row-check,
+.js-bulk-delete[data-select-reveal]:not(.sel-active) .bulk-select-col{ display:none; }
 .bulk-select-col input[type="checkbox"],
 .js-row-check{ width:16px; height:16px; cursor:pointer; accent-color:var(--red); }
 </style>
@@ -901,7 +977,22 @@ document.addEventListener('keydown', function (e) {
 });
 
 </script>
-<script src="{% static 'js/bulk-delete.js' %}"></script>
+<script src="{% static 'js/bulk-delete.js' %}?v=2"></script>
 {% block extra_scripts %}{% endblock %}
+<script>
+  /* keep .app / .sidebar exactly as tall as the VISIBLE screen on phones */
+  (function () {
+    var mq = window.matchMedia('(max-width: 768px)');
+    function fit() {
+      var app = document.querySelector('.app'), sb = document.querySelector('.sidebar');
+      var h = window.innerHeight + 'px';
+      if (app) app.style.height = mq.matches ? h : '';
+      if (sb) sb.style.height = mq.matches ? h : '';
+    }
+    fit();
+    window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+  })();
+</script>
 </body>
 </html>

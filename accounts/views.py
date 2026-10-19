@@ -1,3 +1,4 @@
+import logging
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
 from django.templatetags.static import static
@@ -19,10 +20,12 @@ from django.core.exceptions import PermissionDenied
 from django.urls import reverse_lazy, reverse
 from accounts.mixins import RoleRequiredMixin, ModalFormMixin, ModalDetailMixin, is_modal_request, bulk_delete
 from accounts.models import ActivityLog
-from accounts.forms import AdminUserCreateForm, AdminUserUpdateForm, AdminSetPasswordForm, ProfileUpdateForm, ProfilePasswordChangeForm, StudentImportForm, SetPasswordOnVerifyForm
+from accounts.forms import email_domain_error, AdminUserCreateForm, AdminUserUpdateForm, AdminSetPasswordForm, ProfileUpdateForm, ProfilePasswordChangeForm, StudentImportForm, SetPasswordOnVerifyForm
 from accounts.constants import DEPARTMENT_CHOICES, department_year_levels_json, year_level_choices_for, department_name
 from django.core.cache import cache
 from notifications import services as notify_service
+
+logger = logging.getLogger(__name__)
 
 # How many failed login attempts (for the same email) within the window
 # below trigger a "multiple failed login attempts" alert to all Admins.
@@ -668,9 +671,56 @@ def send_verification_email(request, user):
             to=[user.email],
         )
         message.attach_alternative(html_body, 'text/html')
-        message.send(fail_silently=True)
+        message.send(fail_silently=False)
+        return True
     except Exception:
-        pass  # never let an email hiccup block account creation itself
+        # never let an email hiccup block account creation itself, but log
+        # the real reason (bad SMTP login, network down, ...) instead of
+        # swallowing it. NOTE: a wrong-but-valid-looking address can't be
+        # detected here — Gmail accepts the message and the bounce comes
+        # back later to the sender's inbox.
+        logger.exception('Failed to send verification email to %s', user.email)
+        return False
+
+
+# emails a newly-created Student account to let them know their account
+# exists and what it will be used for (roster / reservation notifications).
+# Students never log in with email/password (they use their Student ID at
+# a lab PC), so there's no verification link here — just a heads-up.
+def send_student_welcome_email(user):
+    """Notifies a newly registered Student via their Gmail that their
+    CompuLab account has been created. Silently no-ops if the student
+    has no email on file. Everything here — including template
+    rendering — is wrapped in try/except: an email hiccup (bad template
+    context, missing static manifest entry, SMTP error, etc.) must never
+    bubble up and turn an already-successful account creation into a
+    500 response."""
+    if not user.email:
+        return
+    try:
+        logo_url = f'{settings.SITE_URL}{static("img/logo.jpg")}'
+        context = {'user': user, 'logo_url': logo_url}
+        text_body = render_to_string('emails/student_welcome.txt', context)
+        html_body = render_to_string('emails/student_welcome.html', context)
+        message = EmailMultiAlternatives(
+            subject='Your CompuLab student account has been created',
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        message.attach_alternative(html_body, 'text/html')
+        # fail_silently=False here (not True) so a real SMTP/auth problem
+        # actually raises and gets caught + logged just below — with
+        # fail_silently=True the failure gets swallowed *inside* .send()
+        # itself, before our except block ever sees it, which is why "no
+        # email arrived" can happen with nothing showing up anywhere.
+        message.send(fail_silently=False)
+    except Exception:
+        # Still never blocks account creation (the account was already
+        # saved before this function ran), but now the real reason shows
+        # up in the server console/logs — check here first if a student
+        # says they never got the email.
+        logger.exception('Failed to send student welcome email to %s', user.email)
 
 
 # admin create new user
@@ -695,12 +745,41 @@ class UserCreateView(RoleRequiredMixin, ModalFormMixin, CreateView):
             target_identifier=self.object.email or self.object.id_number,
             details=f'{self.object.display_name} registered as {self.object.get_role_display()}.'
         )
-        if self.object.email:
+        if self.object.role != 'student' and self.object.email:
+            # Verification links are only meaningful for accounts that
+            # actually log in with email — never Students.
             send_verification_email(self.request, self.object)
             messages.success(self.request, 'User registered. A verification email was sent to their Gmail.')
+        elif self.object.role == 'student' and self.object.email:
+            send_student_welcome_email(self.object)
+            messages.success(self.request, 'Student registered. A notification was sent to their Gmail.')
         else:
             messages.success(self.request, 'User registered.')
         return response
+
+
+# admin re-sends the verification link to an Admin/Lab In-Charge/Instructor
+# account that still isn't verified (first email never arrived, was deleted,
+# or the link expired). If the ADDRESS itself is wrong, fix it with Edit user
+# instead — saving a changed email sends a fresh link automatically.
+@login_required
+def user_resend_verification(request, pk):
+    _require_admin(request)
+    target = get_object_or_404(User, pk=pk)
+    if request.method == 'POST':
+        if target.role == 'student' or not target.email:
+            messages.error(request, 'Only accounts that sign in with an email can be sent a verification link.')
+        elif target.email_verified:
+            messages.info(request, f'{target.display_name} is already verified.')
+        elif send_verification_email(request, target):
+            messages.success(
+                request,
+                f'Verification email re-sent to {target.email}. If you get a "Mail Delivery Subsystem" '
+                f'bounce, the address is wrong — use Edit user to correct it.'
+            )
+        else:
+            messages.error(request, 'The verification email could not be sent. Check the server log and the email settings in .env.')
+    return redirect('users')
 
 
 # handles the link clicked from the verification email
@@ -1675,30 +1754,47 @@ class StudentImportView(RoleRequiredMixin, FormView):
         seen_id_numbers = set(
             User.objects.filter(role='student').values_list('id_number', flat=True)
         )
+        seen_emails = set(
+            User.objects.filter(email__isnull=False).values_list('email', flat=True)
+        )
 
         for i, row in enumerate(rows, start=2):  # row 1 is the header
             errors = validate_row(row, department)
             id_number = row.get('id_number', '')
+            email = (row.get('email') or '').strip() or None
 
             if not errors:
                 if id_number in seen_id_numbers:
                     errors.append(f'A student with ID Number "{id_number}" already exists.')
+                if email and email.lower() in seen_emails:
+                    errors.append(f'"{email}" is already in use by another account.')
+                domain_error = email_domain_error(email)
+                if domain_error:
+                    errors.append(f'"{email}": {domain_error}')
 
             if errors:
                 skipped.append({'row': i, 'id_number': id_number or '—', 'errors': errors})
                 continue
 
             seen_id_numbers.add(id_number)
+            if email:
+                seen_emails.add(email.lower())
 
             year_level = parse_year_level(row.get('year_level'))
 
-            # No email and no username for imported Student accounts —
-            # they authenticate at the lab PC with their Student ID Number
-            # and a reservation code, never through the web dashboard.
+            # No username/password for imported Student accounts — they
+            # authenticate at the lab PC with their Student ID Number and
+            # a reservation code, never through the web dashboard. Email is
+            # still required for them though, same as every other role —
+            # unlike the other roles it's never a login credential here,
+            # just where roster/reservation notifications get sent once an
+            # instructor adds them to a Class Roster (validate_row() already
+            # rejected this row above if it's missing).
             user = User(
                 first_name=row.get('first_name', ''),
                 last_name=row.get('last_name', ''),
                 id_number=id_number,
+                email=email,
                 role='student',
                 department=department,
                 year_level=year_level,
@@ -1707,6 +1803,7 @@ class StudentImportView(RoleRequiredMixin, FormView):
             # they never need (or get) a Django login password.
             user.set_unusable_password()
             user.save()
+            send_student_welcome_email(user)
 
             ActivityLog.objects.create(
                 actor=self.request.user,
@@ -1738,8 +1835,8 @@ def user_import_template(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="student_import_template.csv"'
     writer = csv_module.writer(response)
-    writer.writerow(['ID Number', 'First Name', 'Last Name', 'Year Level'])
-    writer.writerow(['2026-00123', 'Juan', 'Dela Cruz', '2'])
+    writer.writerow(['ID Number', 'First Name', 'Last Name', 'Year Level', 'Email'])
+    writer.writerow(['2026-00123', 'Juan', 'Dela Cruz', '2', 'juan.delacruz@gmail.com'])
     return response
 
 

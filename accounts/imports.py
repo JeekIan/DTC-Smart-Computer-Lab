@@ -8,6 +8,9 @@ kind of file, so the row-reading logic lives here once.
 import csv
 import io
 
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+
 from accounts.constants import year_level_choices_for
 
 # Recognized header names, lower-cased, mapped to our internal field name.
@@ -18,6 +21,7 @@ _HEADER_ALIASES = {
     'first name': 'first_name', 'first_name': 'first_name', 'firstname': 'first_name',
     'last name': 'last_name', 'last_name': 'last_name', 'lastname': 'last_name',
     'year level': 'year_level', 'year_level': 'year_level', 'yearlevel': 'year_level', 'year': 'year_level',
+    'email': 'email', 'gmail': 'email', 'email address': 'email', 'gmail address': 'email',
 }
 
 
@@ -32,7 +36,10 @@ def _normalize_row(headers, raw_row):
 
 def read_rows(uploaded_file):
     """Yields one dict per data row: {'id_number', 'first_name', 'last_name',
-    'year_level'} (missing columns simply absent).
+    'year_level', 'email'} (missing columns simply absent). 'email' is
+    required for every student — never a login credential, but it's
+    where roster/reservation notifications get sent once they're on a
+    Class Roster.
     Raises ValueError with a human-readable message if the file can't be
     read at all."""
     name = (uploaded_file.name or '').lower()
@@ -95,4 +102,13 @@ def validate_row(row, department):
         valid_values = {v for v, _ in year_level_choices_for(department)}
         if year_level not in valid_values:
             errors.append(f'Year Level "{year_level_raw}" isn\'t offered by the selected department.')
+
+    email = row.get('email')
+    if not email:
+        errors.append('Missing Email (Gmail) — required for every student.')
+    else:
+        try:
+            validate_email(email)
+        except ValidationError:
+            errors.append(f'"{email}" isn\'t a valid email address.')
     return errors

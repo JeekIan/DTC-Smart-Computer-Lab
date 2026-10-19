@@ -1,0 +1,11 @@
+{% comment %}
+"Select all" checkbox for lists that use data-select-reveal on their
+.js-bulk-delete wrapper (see static/js/bulk-delete.js): the row checkboxes
+stay hidden until this is ticked. Include it inside the wrapper, above the
+table/list.
+{% endcomment %}
+<label class="bulk-selectall"><input type="checkbox" class="js-select-all"> Select all</label>
+<style>
+  .bulk-selectall { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin: 0 0 10px; user-select: none; }
+  .bulk-selectall input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--red); }
+</style>

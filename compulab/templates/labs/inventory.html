@@ -247,8 +247,9 @@
   <div class="card">
     {% if page_obj.object_list %}
     {% if request.user.role == 'admin' %}
-    <div class="js-bulk-delete" data-item-label="inventory item">
+    <div class="js-bulk-delete" data-select-reveal data-item-label="inventory item">
     <form method="post" action="{% url 'inventory_bulk_delete' %}" class="js-bulk-delete-form">{% csrf_token %}</form>
+    {% include "partials/bulk_select_all.html" %}
     {% include "partials/bulk_delete_toolbar.html" %}
     {% endif %}
     <div style="overflow-x:auto;">
@@ -256,7 +257,7 @@
         <thead>
           <tr>
             {% if request.user.role == 'admin' %}
-            <th class="bulk-select-col"><input type="checkbox" class="js-select-all"></th>
+            <th class="bulk-select-col"></th>
             {% endif %}
             <th>#</th>
             <th>Item Name</th>
@@ -385,7 +386,7 @@
           <div class="inv-lowstock-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8l9-5 9 5-9 5-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8v8l9 5 9-5V8" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
           <div style="flex:1; min-width:0;">
             <div class="inv-lowstock-name">{{ item.name }}</div>
-            <div class="inv-lowstock-sub">{{ item.lab.name }}</div>
+            <div class="inv-lowstock-sub">{{ item.lab_name }}</div>
           </div>
           <div class="inv-lowstock-remaining">
             <div class="n">{{ item.quantity }}</div>

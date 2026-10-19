@@ -2,9 +2,19 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from accounts.email_rules import email_domain_error
 from accounts.constants import DEPARTMENT_CHOICES, year_level_choices_for
 
 User = get_user_model()
+
+
+def _check_email_typo(form, email):
+    """Gmail only — for every role, on create AND edit (no exemption for an
+    account's existing address, so an old non-Gmail email has to be fixed
+    the next time that account is saved)."""
+    error = email_domain_error(email)
+    if error:
+        form.add_error('email', error)
 
 
 def _validate_department_year_level(cleaned):
@@ -49,12 +59,15 @@ class AdminUserCreateForm(forms.ModelForm):
     """Used by admins to create accounts for any role.
 
     Students are a special case: they never sign in to the SCLAMS
-    dashboard, so they don't get (or need) a password, and they don't need
-    an Email (Gmail) address either — their Student ID (plus a reservation
-    code) is what they present at a lab PC. Only Admin, Lab In-Charge, and
-    Instructor accounts require an Email and a password here. Student
-    accounts only need Full Name, Department, Year Level, Assigned Lab,
-    and a unique Student ID.
+    dashboard, so they don't get (or need) a password — their Student ID
+    (plus a reservation code) is what they present at a lab PC instead.
+    A Gmail address is still required for them though: it's never a
+    login credential for a Student, just where roster/reservation
+    notifications get sent once an instructor adds them to a Class
+    Roster — but every account in the system, Student or not, is
+    required to have one on file. Only Admin, Lab In-Charge, and
+    Instructor accounts additionally require a password (Students never
+    get one).
     """
     password1 = forms.CharField(
         label='Password',
@@ -75,9 +88,12 @@ class AdminUserCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Email isn't asked for when creating a Student, so it can't be
-        # required at the field level — role-based requiredness is
-        # enforced in clean() instead.
+        # Email is required for every role now, Student included — kept
+        # off at the field level (not required=True) so our own
+        # clean()-level message below fires instead of Django's generic
+        # default, and so switching the Role dropdown around doesn't
+        # trip the browser's native required-field popup before clean()
+        # gets a say.
         self.fields['email'].required = False
         # This field is hidden client-side for Students via CSS, but
         # browsers can still autofill it with saved credentials (e.g. the
@@ -94,18 +110,25 @@ class AdminUserCreateForm(forms.ModelForm):
         role = cleaned.get('role')
         id_number = (cleaned.get('id_number') or '').strip()
         email = (cleaned.get('email') or '').strip()
+        _check_email_typo(self, email)
 
         if role == 'student':
-            # No password and no email for students — clear anything typed
-            # in case the role was switched after filling the fields in on
-            # the form. Email is stored as None (not ''), never '': two
-            # Students both saved with '' would collide against the
-            # unique constraint, since NULL (unlike '') isn't considered
-            # equal to another NULL in a uniqueness check.
+            # No password for students — clear anything typed in case the
+            # role was switched after filling in the fields on the form.
+            # Email/Gmail IS required for a Student now too (notifications
+            # only, never a login credential) — stored as None, never '',
+            # when genuinely blank, so multiple pre-existing Students
+            # without one on file don't collide against the unique
+            # constraint (NULL, unlike '', isn't equal to another NULL in
+            # a uniqueness check). Format + uniqueness for the value
+            # itself is enforced the same automatic way as for the other
+            # roles (see below).
             cleaned['password1'] = ''
             cleaned['password2'] = ''
-            cleaned['email'] = None
+            cleaned['email'] = email or None
             cleaned['assigned_lab'] = None
+            if not email:
+                self.add_error('email', 'Email (Gmail) is required for Student accounts too — it\'s where roster and reservation notifications get sent.')
             if not id_number:
                 self.add_error('id_number', 'Student ID is required for Student accounts.')
             if not cleaned.get('department'):
@@ -241,15 +264,21 @@ class AdminUserUpdateForm(forms.ModelForm):
         role = self.instance.role
         id_number = (cleaned.get('id_number') or '').strip()
         email = (cleaned.get('email') or '').strip()
+        _check_email_typo(self, email)
 
         if role == 'student':
             cleaned['password1'] = ''
             cleaned['password2'] = ''
-            # Students don't use Email as a login credential. Stored as
-            # None, never '', so multiple Students don't collide on the
-            # unique constraint.
-            cleaned['email'] = None
+            # Students don't use Email as a login credential, but it IS
+            # required for them too now — it's their notification
+            # address (roster/reservation details). Stored as None,
+            # never '', only for the rare pre-existing Student who
+            # genuinely has none on file yet, so those don't collide on
+            # the unique constraint.
+            cleaned['email'] = email or None
             cleaned['assigned_lab'] = None
+            if not email:
+                self.add_error('email', 'Email (Gmail) is required for Student accounts too — it\'s where roster and reservation notifications get sent.')
             if not id_number:
                 self.add_error('id_number', 'Student ID is required for Student accounts.')
             if not cleaned.get('department'):
@@ -310,7 +339,14 @@ class AdminUserUpdateForm(forms.ModelForm):
         # a fresh verification link (sent by the view, since that needs
         # `request`) is clicked. self.email_changed is read by
         # UserUpdateView.form_valid() to decide whether to send that link.
-        self.email_changed = bool(self._original_email) and user.email and user.email != self._original_email
+        # Students never log in with email at all, so this whole
+        # verify-on-change dance doesn't apply to them — a Student's
+        # Gmail is just a notification address, no proof-of-ownership
+        # link needed.
+        self.email_changed = (
+            user.role != 'student'
+            and bool(self._original_email) and user.email and user.email != self._original_email
+        )
         if self.email_changed:
             user.email_verified = False
 
@@ -403,8 +439,9 @@ class StudentImportForm(forms.Form):
     department = forms.ChoiceField(choices=DEPARTMENT_CHOICES, label='Department')
     file = forms.FileField(
         label='Excel or CSV file',
-        help_text='Columns: ID Number, First Name, Last Name, Year Level. '
-                   'Students don\'t need an Email or Username — they sign in at the lab PC with their Student ID.'
+        help_text='Columns: ID Number, First Name, Last Name, Year Level, Email. '
+                   'Email (Gmail) is required for every student — it\'s where roster and '
+                   'reservation notifications get sent — even though it\'s never used to sign in.'
     )
 
     def clean_file(self):

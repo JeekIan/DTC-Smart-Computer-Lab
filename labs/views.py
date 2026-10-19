@@ -2561,7 +2561,7 @@ class InventoryView(RoleRequiredMixin, ListView):
         return qs
 
     def get_context_data(self, **kwargs):
-        from django.db.models import Count, F
+        from django.db.models import Count, F, Sum
 
         ctx = super().get_context_data(**kwargs)
         all_items = InventoryItem.objects.all()
@@ -2617,10 +2617,27 @@ class InventoryView(RoleRequiredMixin, ListView):
         ]
 
         # --- low stock alert ---
-        ctx['low_stock_items'] = (
-            all_items.filter(quantity__lte=self.LOW_STOCK_THRESHOLD)
-            .select_related('lab').order_by('quantity')[:5]
+        # A quantity by itself is meaningless if the units behind it are
+        # Faulty/Needs Check or already pulled for repair — those aren't
+        # available stock, "repair" solves that, not "restock", and it's
+        # already tracked by the Faulty/Under Repair counts above. Low
+        # Stock should only ever be about USABLE quantity: Good/Fair
+        # condition AND Operational status. Grouping by name+lab also
+        # matters — the same equipment name often exists as more than one
+        # row (a healthy batch and a separate Faulty batch of the same
+        # item), and alerting on one broken-out row while a large healthy
+        # one sits right next to it is a false alarm.
+        usable_items = all_items.filter(condition__in=['good', 'fair'], status='operational')
+        low_stock_groups = (
+            usable_items.values('name', 'lab_id', 'lab__name')
+            .annotate(total_quantity=Sum('quantity'))
+            .filter(total_quantity__lte=self.LOW_STOCK_THRESHOLD)
+            .order_by('total_quantity')[:5]
         )
+        ctx['low_stock_items'] = [
+            {'name': g['name'], 'lab_name': g['lab__name'], 'quantity': g['total_quantity']}
+            for g in low_stock_groups
+        ]
 
         # --- recent activity (merged feed: added, updated, repaired, reported) ---
         activity = []
@@ -2929,8 +2946,27 @@ def inventory_status_update(request, pk):
     if request.method == 'POST':
         new_status = request.POST.get('status')
         if new_status in dict(InventoryItem.STATUS):
+            was_already_retired = (item.status == 'retired')
             item.status = new_status
-            item.save(update_fields=['status'])
+            update_fields = ['status']
+            # Retirement traceability — stamped the moment status BECOMES
+            # Retired; a re-submit while it's already Retired (nothing
+            # actually changed) leaves the original timestamp/who/reason
+            # alone instead of overwriting them. Un-retiring (choosing a
+            # different status afterward) clears the trail, since it no
+            # longer describes the item's current state.
+            if new_status == 'retired' and not was_already_retired:
+                from django.utils import timezone
+                item.retired_at = timezone.now()
+                item.retired_by = request.user
+                item.retirement_reason = (request.POST.get('reason') or '').strip()
+                update_fields += ['retired_at', 'retired_by', 'retirement_reason']
+            elif new_status != 'retired' and was_already_retired:
+                item.retired_at = None
+                item.retired_by = None
+                item.retirement_reason = ''
+                update_fields += ['retired_at', 'retired_by', 'retirement_reason']
+            item.save(update_fields=update_fields)
             messages.success(request, f'Status updated for "{item.name}".')
         return modal_redirect(request, redirect_target, *redirect_args)
     return modal_redirect(request, redirect_target, *redirect_args)

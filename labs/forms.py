@@ -126,6 +126,24 @@ class InventoryItemForm(forms.ModelForm):
             'last_checked': forms.DateInput(attrs={'type': 'date'}),
         }
 
+    def save(self, commit=True):
+        item = super().save(commit=False)
+        # Condition and Status are separate fields on InventoryItem, and
+        # Status isn't even exposed on this form — so without this, marking
+        # an item "Faulty"/"Needs Check" here left Status stuck wherever it
+        # already was (almost always the 'operational' default), which the
+        # inventory list badge renders as "Working" regardless of Condition.
+        # Auto-escalate Status when Condition turns bad; never auto-revert it
+        # back to 'operational' when Condition looks fine again — that stays
+        # a deliberate action on the Equipment Status page, in case someone
+        # marked it Under Repair for a reason Condition doesn't capture (a
+        # part on order, say). A Retired item is never bumped either way.
+        if item.condition in ('faulty', 'needs_check') and item.status == 'operational':
+            item.status = 'under_repair'
+        if commit:
+            item.save()
+        return item
+
 
 class ReservationPCLoginForm(forms.Form):
     """

@@ -1,0 +1,21 @@
+Welcome to CompuLab
+
+Hi {{ user.display_name }},
+
+An account was created for you on CompuLab as a Student.
+You'll use your Student ID to sign in at any lab computer — this email
+address is only used to send you roster and reservation notifications,
+so no password setup is needed here.
+
+Student ID: {{ user.id_number }}
+{% if user.department_display %}Department: {{ user.department_display }}{% if user.year_level_display %} - {{ user.year_level_display }}{% endif %}
+{% endif %}
+If you weren't expecting this account, please contact your Registrar Office.
+
+--
+Registrar Office
+School Name: Danao Technological College
+Site: https://compulab.danaotechnologicalcollege.com
+Email: dtcdanaobohol@gmail.com / registrar2021dtc@gmail.com
+
+This is an automated message from the Academic Information Management System. Please do not reply to this email.

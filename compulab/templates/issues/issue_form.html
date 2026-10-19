@@ -6,7 +6,7 @@
 <div class="page-header">
   <div>
     <h1>{% if object %}Update issue{% else %}Report a new issue{% endif %}</h1>
-    {% if object %}<div class="sub">{{ object.title }}</div>{% endif %}
+    {% if object %}<div class="sub">{{ object.title }}</div>{% else %}<div class="sub">Report any problem in the lab — computers, aircon, lights, projector, network, furniture or anything else.</div>{% endif %}
   </div>
 </div>
 
@@ -18,18 +18,20 @@
       <div class="form-errors">{{ form.non_field_errors }}</div>
     {% endif %}
 
-    {% if form.pc %}
-    <div class="form-row">
+    {% if not object %}
+    <div class="form-row"{% if not form.pc %} style="grid-template-columns:1fr"{% endif %}>
       <div class="form-group">
         <label class="form-label" for="{{ form.lab.id_for_label }}">Lab</label>
         {{ form.lab }}
         {% if form.lab.errors %}<div class="form-errors">{{ form.lab.errors|join:", " }}</div>{% endif %}
       </div>
+      {% if form.pc %}
       <div class="form-group">
-        <label class="form-label" for="{{ form.pc.id_for_label }}">PC (optional)</label>
+        <label class="form-label" for="{{ form.pc.id_for_label }}">PC (optional — leave blank if it isn't about a specific computer)</label>
         {{ form.pc }}
         {% if form.pc.errors %}<div class="form-errors">{{ form.pc.errors|join:", " }}</div>{% endif %}
       </div>
+      {% endif %}
     </div>
 
     <div class="form-group">
@@ -77,7 +79,7 @@
 
     <div class="form-actions">
       <button type="submit" class="action-btn primary">{% if object %}<svg class="btn-icon"><use href="#icon-save"/></svg> Save changes{% else %}<svg class="btn-icon"><use href="#icon-plus"/></svg> Log issue{% endif %}</button>
-      <a href="{% if object %}{% url 'issue_detail' object.pk %}{% else %}{% url 'issues' %}{% endif %}" class="action-btn"><svg class="btn-icon"><use href="#icon-x"/></svg> Cancel</a>
+      <a href="{% if object %}{% url 'issue_detail' object.pk %}{% elif request.user.role == 'instructor' %}{% url 'my_issues' %}{% else %}{% url 'issues' %}{% endif %}" class="action-btn"><svg class="btn-icon"><use href="#icon-x"/></svg> Cancel</a>
     </div>
   </form>
 </div>

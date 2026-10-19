@@ -18,6 +18,10 @@ class UserManager(BaseUserManager):
 
     def _create_user(self, email, password, **extra_fields):
         email = self.normalize_email(email) if email else None
+        from accounts.email_rules import email_domain_error
+        _err = email_domain_error(email)
+        if _err:
+            raise ValueError(f'{email}: {_err}')
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -55,10 +59,13 @@ class User(AbstractUser):
     email = models.EmailField(
         'email address', max_length=254, unique=True, null=True, blank=True,
         error_messages={'unique': 'A user with that email address already exists.'},
-        help_text='Login credential for Admin, Lab In-Charge, and Instructor accounts. '
-                   'Required and must be unique for those roles. Not used by Students — '
-                   'they sign in at the lab PC with their Student ID Number and a '
-                   'reservation code instead.'
+        help_text='Required and unique for every account. Login credential for Admin, '
+                   'Lab In-Charge, and Instructor accounts. Students never log in with it '
+                   '(they sign in at the lab PC with their Student ID Number and a '
+                   'reservation code instead) — for them this is instead where '
+                   'roster/reservation notifications get sent. null=True/blank=True stays '
+                   'set at the DB level only so pre-existing Student rows saved before '
+                   'this was required don\'t break; every form now requires it going forward.'
     )
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

@@ -19,6 +19,28 @@
     {% endif %}
 
     <div class="form-row">
+      {% if object %}
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <div class="static-value">{{ object.get_role_display }}</div>
+        <input type="hidden" id="id_role_fixed" value="{{ object.role }}">
+       
+      </div>
+      {% else %}
+      <div class="form-group">
+        <label class="form-label" for="{{ form.role.id_for_label }}">Role</label>
+        {{ form.role }}
+        {% if form.role.errors %}<div class="form-errors">{{ form.role.errors|join:", " }}</div>{% endif %}
+      </div>
+      {% endif %}
+      <div class="form-group" data-show-for-roles="incharge">
+        <label class="form-label" for="{{ form.assigned_lab.id_for_label }}">Assigned lab</label>
+        {{ form.assigned_lab }}
+        {% if form.assigned_lab.errors %}<div class="form-errors">{{ form.assigned_lab.errors|join:", " }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-row">
       <div class="form-group">
         <label class="form-label" for="{{ form.first_name.id_for_label }}">First name</label>
         {{ form.first_name }}
@@ -32,9 +54,10 @@
     </div>
 
     {% if form.email %}
-    <div class="form-group" data-show-for-roles="admin incharge instructor">
+    <div class="form-group" data-show-for-roles="admin incharge instructor student">
       <label class="form-label" for="{{ form.email.id_for_label }}">Email (Gmail)</label>
       {{ form.email }}
+      <span class="helptext" data-show-for-roles="student">Required — roster and reservation notifications for this student are sent here. Never used to sign in.</span>
       {% if form.email.errors %}<div class="form-errors">{{ form.email.errors|join:", " }}</div>{% endif %}
     </div>
     {% endif %}
@@ -63,28 +86,6 @@
       {% endif %}
     </div>
     {% endif %}
-
-    <div class="form-row">
-      {% if object %}
-      <div class="form-group">
-        <label class="form-label">Role</label>
-        <div class="static-value">{{ object.get_role_display }}</div>
-        <input type="hidden" id="id_role_fixed" value="{{ object.role }}">
-       
-      </div>
-      {% else %}
-      <div class="form-group">
-        <label class="form-label" for="{{ form.role.id_for_label }}">Role</label>
-        {{ form.role }}
-        {% if form.role.errors %}<div class="form-errors">{{ form.role.errors|join:", " }}</div>{% endif %}
-      </div>
-      {% endif %}
-      <div class="form-group" data-show-for-roles="incharge">
-        <label class="form-label" for="{{ form.assigned_lab.id_for_label }}">Assigned lab</label>
-        {{ form.assigned_lab }}
-        {% if form.assigned_lab.errors %}<div class="form-errors">{{ form.assigned_lab.errors|join:", " }}</div>{% endif %}
-      </div>
-    </div>
 
     {% if form.is_active %}
     <div class="form-group">

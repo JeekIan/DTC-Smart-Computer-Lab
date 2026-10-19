@@ -32,6 +32,10 @@ class Notification(models.Model):
         # ---- auto-generated: maintenance/equipment ----
         ('maintenance_submitted', 'Maintenance Request Submitted'),
         ('maintenance_completed', 'Maintenance Completed'),
+        # ---- auto-generated: issue reports ----
+        ('issue_reported', 'New Issue Reported'),
+        ('issue_status_changed', 'Issue Status Updated'),
+        ('issue_resolved', 'Issue Resolved'),
         # ---- auto-generated: security ----
         ('login_security_alert', 'Failed Login Attempts'),
     ]
@@ -67,6 +71,9 @@ class Notification(models.Model):
         'pc_maintenance': WARNING,
         'maintenance_submitted': WARNING,
         'maintenance_completed': SUCCESS,
+        'issue_reported': WARNING,
+        'issue_status_changed': INFO,
+        'issue_resolved': SUCCESS,
         'login_security_alert': CRITICAL,
     }
 

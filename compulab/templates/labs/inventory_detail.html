@@ -21,6 +21,11 @@
       <tr><td>Condition</td><td><span class="status-pill pill-{{ item.condition }}">{{ item.get_condition_display }}</span></td></tr>
       <tr><td>Status</td><td><span class="status-pill pill-{{ item.status }}">{{ item.get_status_display }}</span></td></tr>
       <tr><td>Last checked</td><td>{{ item.last_checked|date:"M d, Y"|default:"—" }}</td></tr>
+      {% if item.status == 'retired' %}
+        <tr><td>Retired on</td><td>{{ item.retired_at|date:"M d, Y H:i"|default:"—" }}</td></tr>
+        <tr><td>Retired by</td><td>{{ item.retired_by.display_name|default:"—" }}</td></tr>
+        <tr><td>Reason</td><td>{{ item.retirement_reason|default:"—" }}</td></tr>
+      {% endif %}
     </table>
   </div>
 
@@ -35,6 +40,7 @@
         <option value="under_repair" {% if item.status == 'under_repair' %}selected{% endif %}>Under Repair</option>
         <option value="retired" {% if item.status == 'retired' %}selected{% endif %}>Retired</option>
       </select>
+      <input type="text" name="reason" placeholder="Reason (if retiring)" class="form-control" style="max-width:200px;">
       <button type="submit" class="action-btn primary"><svg class="btn-icon"><use href="#icon-check"/></svg> Update status</button>
     </form>
   </div>

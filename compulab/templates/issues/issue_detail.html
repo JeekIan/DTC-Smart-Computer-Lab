@@ -83,6 +83,11 @@
 
 <div class="card">
   <a href="{% url 'issues' %}" class="action-btn"><svg class="btn-icon"><use href="#icon-arrow-left"/></svg> ← Back to issues</a>
+  <form method="post" action="{% url 'issue_delete' issue.pk %}" style="display:inline"
+        onsubmit="event.preventDefault(); compulabConfirmSubmit(this, {title: 'Delete this issue?', text: 'This permanently deletes the issue. The instructor who reported it will no longer see it either. This cannot be undone.', icon: 'warning', confirmButtonText: 'Yes, delete', confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--red').trim()}); return false;">
+    {% csrf_token %}
+    <button type="submit" class="action-btn danger"><svg class="btn-icon"><use href="#icon-trash"/></svg> Delete issue</button>
+  </form>
 </div>
 
 {% endblock %}

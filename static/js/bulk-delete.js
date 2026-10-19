@@ -28,6 +28,11 @@
  *   the checked values into hidden inputs before submitting).
  * - "data-item-label" (optional) customizes the confirmation text, e.g.
  *   "user" -> "Delete 3 users?".
+ * - "data-select-reveal" (optional, no value) keeps the row checkboxes
+ *   hidden until "Select all" is ticked; they hide again once nothing is
+ *   selected.
+ * - "data-confirm-text" (optional) replaces the dialog's body text, for
+ *   lists where "Delete" doesn't mean a permanent delete.
  */
 (function () {
   document.addEventListener('DOMContentLoaded', function () {
@@ -41,6 +46,9 @@
     var countEl = toolbar ? toolbar.querySelector('.js-bulk-count') : null;
     var deleteBtn = toolbar ? toolbar.querySelector('.js-bulk-delete-btn') : null;
     var itemLabel = root.dataset.itemLabel || 'record';
+    // data-select-reveal: row checkboxes stay hidden until "Select all" is
+    // ticked (see the .sel-active rule in base.html).
+    var reveal = root.hasAttribute('data-select-reveal');
     if (!form || !deleteBtn) return;
 
     function rowChecks() {
@@ -49,6 +57,7 @@
 
     function refresh() {
       var checked = root.querySelectorAll('.js-row-check:checked');
+      if (reveal && checked.length === 0) root.classList.remove('sel-active');
       if (toolbar) toolbar.classList.toggle('is-visible', checked.length > 0);
       if (countEl) countEl.textContent = checked.length;
       if (selectAll) {
@@ -62,6 +71,7 @@
       if (e.target.classList.contains('js-row-check')) refresh();
       if (selectAll && e.target === selectAll) {
         rowChecks().forEach(function (cb) { cb.checked = selectAll.checked; });
+        if (reveal) root.classList.toggle('sel-active', selectAll.checked);
         refresh();
       }
     });
@@ -84,7 +94,7 @@
       var ids = Array.prototype.map.call(checked, function (cb) { return cb.value; });
       var count = ids.length;
       var plural = count === 1 ? '' : 's';
-      var text = 'This will permanently delete ' + count + ' ' + itemLabel + plural + '. This cannot be undone.';
+      var text = root.dataset.confirmText || ('This will permanently delete ' + count + ' ' + itemLabel + plural + '. This cannot be undone.');
 
       // Reuse the app-wide SweetAlert2 helper (see base.html) when it's
       // available, same confirm dialog every destructive action already

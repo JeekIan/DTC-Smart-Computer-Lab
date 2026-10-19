@@ -1,0 +1,61 @@
+{% autoescape off %}
+<div style="font-family:Arial,Helvetica,sans-serif; max-width:480px; margin:0 auto; background:#0c1120; border-radius:20px; overflow:hidden;">
+
+  <!-- header -->
+  <div style="background:linear-gradient(135deg,#3a5cf0,#1c2a8f); padding:32px 28px 26px;">
+    <div style="font-size:21px; font-weight:700; color:#ffffff; line-height:1.3; margin:0 0 8px;">Welcome to CompuLab</div>
+    <div style="font-size:12.5px; color:rgba(255,255,255,0.85); line-height:1.5;">Your student account has been created.</div>
+  </div>
+
+  <!-- body -->
+  <div style="padding:26px 28px 8px;">
+    <p style="font-size:14px; font-weight:700; color:#ffffff; margin:0 0 12px;">Hi {{ user.display_name }},</p>
+    <p style="font-size:13px; color:#a9b2c3; line-height:1.65; margin:0 0 18px;">
+      An account was created for you on CompuLab as a <strong style="color:#ffffff;">Student</strong>.
+      You'll use your Student ID to sign in at any lab computer — this email address is only used to
+      send you roster and reservation notifications, so no password setup is needed here.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%; margin:0 0 22px; background:rgba(255,255,255,0.04); border-radius:12px;">
+      <tr>
+        <td style="padding:16px 18px;">
+          <div style="font-size:11px; color:#8b93a7; text-transform:uppercase; letter-spacing:.04em; margin:0 0 4px;">Student ID</div>
+          <div style="font-size:15px; font-weight:700; color:#ffffff; margin:0 0 12px;">{{ user.id_number }}</div>
+          {% if user.department_display %}
+          <div style="font-size:11px; color:#8b93a7; text-transform:uppercase; letter-spacing:.04em; margin:0 0 4px;">Department</div>
+          <div style="font-size:13px; color:#e4e7ee; margin:0 0 12px;">{{ user.department_display }}{% if user.year_level_display %} &middot; {{ user.year_level_display }}{% endif %}</div>
+          {% endif %}
+        </td>
+      </tr>
+    </table>
+
+    <p style="font-size:12px; color:#a9b2c3; line-height:1.6; margin:0 0 24px;">
+      If you weren't expecting this account, please contact your Registrar Office.
+    </p>
+
+    <div style="border-top:1px solid rgba(255,255,255,0.08); margin:0 0 20px;"></div>
+  </div>
+
+  <!-- footer -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%; padding:0 28px 20px;">
+    <tr>
+      <td style="width:52px; vertical-align:top; padding-right:14px;">
+        <img src="{{ logo_url }}" width="44" height="44" alt="Danao Technological College" style="border-radius:50%; display:block;">
+      </td>
+      <td style="vertical-align:top;">
+        <div style="font-size:13px; font-weight:700; color:#ffffff; margin:0 0 6px;">Registrar Office</div>
+        <div style="font-size:11.5px; color:#a9b2c3; line-height:1.7;">
+          School Name: Danao Technological College<br>
+          Site: <a href="https://compulab.danaotechnologicalcollege.com" style="color:#8ea2f2; text-decoration:none;">compulab.danaotechnologicalcollege.com</a><br>
+          Email: dtcdanaobohol@gmail.com / registrar2021dtc@gmail.com
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div style="padding:14px 28px; border-top:1px solid rgba(255,255,255,0.06); font-size:10px; color:#5c6478; text-align:center;">
+    This is an automated message from the Academic Information Management System. Please do not reply to this email.
+  </div>
+
+</div>
+{% endautoescape %}

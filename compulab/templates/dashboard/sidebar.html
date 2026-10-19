@@ -507,6 +507,14 @@ html[data-theme="light"] .nav.role-instructor { --accent-tint: rgba(15,118,110,0
     <span class="nav-label">Class rosters</span>
   </a>
 
+  <div class="nav-section">Operations</div>
+  <a class="nav-item {% if request.resolver_match.url_name == 'my_issues' or request.resolver_match.url_name == 'my_issue_detail' or request.resolver_match.url_name == 'issue_create' %}active{% endif %}"
+     href="{% url 'my_issues' %}">
+    <span class="nav-led"></span>
+    <svg class="nav-icon"><use href="#icon-eye"/></svg>
+    <span class="nav-label">My issue reports</span>
+  </a>
+
 
 
   <div class="nav-spacer"></div>

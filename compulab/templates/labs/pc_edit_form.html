@@ -57,7 +57,8 @@
     {% if object %}
     <button type="submit" form="pc-delete-form" class="action-btn danger"><svg class="btn-icon"><use href="#icon-trash"/></svg> Delete PC</button>
     {% endif %}
-    <a href="{% url 'lab_list' %}" class="action-btn"><svg class="btn-icon"><use href="#icon-x"/></svg> Cancel</a>
+    <a href="{% url 'lab_list' %}" class="action-btn"
+       onclick="if (this.closest('#appModalBody')) { event.preventDefault(); closeAppModal(); }"><svg class="btn-icon"><use href="#icon-x"/></svg> Cancel</a>
   </div>
 
 {% endblock %}
