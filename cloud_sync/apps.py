@@ -8,8 +8,14 @@ class CloudSyncConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
 
     def ready(self):
+        # Signals must be connected in every process (incl. the reloader parent).
+        from cloud_sync import signals  # noqa: F401
+
         is_dev_server = 'runserver' in sys.argv
-        is_reloader_parent = is_dev_server and os.environ.get('RUN_MAIN') != 'true'
+        # With --noreload there is only ONE process (no parent/child), so it must run the worker.
+        is_reloader_parent = (
+            is_dev_server and '--noreload' not in sys.argv and os.environ.get('RUN_MAIN') != 'true'
+        )
         if is_reloader_parent:
             return
 

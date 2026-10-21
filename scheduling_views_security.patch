@@ -1,0 +1,77 @@
+--- /tmp/orig2/compulab/scheduling/views.py	2026-09-06 12:57:02.000000000 +0000
++++ scheduling/views.py	2026-10-20 18:18:08.875093766 +0000
+@@ -1,4 +1,6 @@
++import functools
+ import json
++from django.contrib.auth.decorators import login_required
+ from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DetailView, DeleteView
+ from django.contrib import messages
+ from django.contrib.auth import get_user_model
+@@ -18,6 +20,19 @@
+ User = get_user_model()
+ 
+ 
++def staff_only(view):
++    """Only an Admin or Lab In-Charge may run this action. Instructors can
++    only SUBMIT booking requests; they must never approve, decline or delete
++    anything, and anonymous visitors must never reach these at all."""
++    @login_required
++    @functools.wraps(view)
++    def wrapper(request, *args, **kwargs):
++        if request.user.role not in ('admin', 'incharge'):
++            raise PermissionDenied
++        return view(request, *args, **kwargs)
++    return wrapper
++
++
+ def _official_schedule_conflict(lab, date, start_time, end_time, exclude_pk=None):
+     """True if the given lab/date/time-range overlaps an already-APPROVED
+     Session on the official schedule. Shared by request creation, request
+@@ -204,6 +219,7 @@
+ 
+ 
+ # Action: Delete -> remove an approved session from the official schedule
++@staff_only
+ def delete_session(request, pk):
+     session = get_object_or_404(Session, pk=pk)
+     if request.method == 'POST':
+@@ -215,6 +231,7 @@
+ 
+ 
+ # Action: Export PDF (from the displayed schedule)
++@login_required
+ def export_schedule_pdf(request):
+     sessions, lab_id, date = _retrieve_schedule(request)
+ 
+@@ -267,6 +284,7 @@
+ 
+ 
+ # Action: Export Excel (from the displayed schedule)
++@login_required
+ def export_schedule_excel(request):
+     sessions, lab_id, date = _retrieve_schedule(request)
+ 
+@@ -387,6 +405,7 @@
+ 
+ 
+ # Action: Approve -> Add to Official Schedule -> Return to SS view (pending list)
++@staff_only
+ def approve_request(request, pk):
+     req = get_object_or_404(SessionRequest, pk=pk)
+     if request.method == 'POST':
+@@ -458,6 +477,7 @@
+ 
+ 
+ # Action: Reject -> Request Rejected -> Return to Schedule & request
++@staff_only
+ def decline_request(request, pk):
+     req = get_object_or_404(SessionRequest, pk=pk)
+     if request.method == 'POST':
+@@ -472,6 +492,7 @@
+ 
+ 
+ # Action: Export PDF for a single request -> Return to Schedule & request
++@login_required
+ def export_request_pdf(request, pk):
+     req = get_object_or_404(SessionRequest, pk=pk)
+ 

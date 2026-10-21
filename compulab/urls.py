@@ -16,6 +16,7 @@ urlpatterns = [
     path('schedule/', include('scheduling.urls')),
     path('issues/', include('issues.urls')),
     path('notifications/', include('notifications.urls')),
+    path('api/', include('cloud_sync.urls')),
 ]
 
 if settings.DEBUG:

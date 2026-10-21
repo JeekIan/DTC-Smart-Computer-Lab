@@ -47,7 +47,7 @@
 
   {% if object %}
   <form method="post" action="{% url 'pc_delete' object.pk %}" id="pc-delete-form"
-        onsubmit="event.preventDefault(); compulabConfirmSubmit(this, {title: 'Delete this PC?', text: 'This action cannot be undone.<br>{{ object.pc_id|escapejs }} will be <span class=&quot;cl-danger-highlight&quot;>permanently removed</span>.<br>Any issue reports linked to it<br>will be kept in history.', confirmButtonText: 'Yes, delete PC', itemName: '{{ object.pc_id|escapejs }}', itemSub: '{{ object.lab.name|escapejs }}'}); return false;">
+        onsubmit="event.preventDefault(); compulabConfirmSubmit(this, {title: 'Delete this PC?', html: 'This action cannot be undone.<br>{{ object.pc_id|force_escape|escapejs }} will be <span class=&quot;cl-danger-highlight&quot;>permanently removed</span>.<br>Any issue reports linked to it<br>will be kept in history.', confirmButtonText: 'Yes, delete PC', itemName: '{{ object.pc_id|escapejs }}', itemSub: '{{ object.lab.name|escapejs }}'}); return false;">
     {% csrf_token %}
   </form>
   {% endif %}

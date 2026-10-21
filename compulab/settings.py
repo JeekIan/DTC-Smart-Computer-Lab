@@ -277,10 +277,11 @@ PC_ACTIVITY_LOG_WIPE_WEEKDAY = None
 
 # --- Cloud sync (edge server pushes to a remote cloud server when
 # online; everything above keeps working with this left blank) ---
-CLOUD_SERVER_URL = ''  # e.g. 'https://compulab-cloud.example.com' -- blank = sync disabled, edge-only
-CLOUD_SYNC_API_KEY = ''  # shared secret with the cloud server's /api/sync/ endpoint
+CLOUD_SERVER_URL = 'https://compulab.danaotechnologicalcollege.com/'  # e.g. 'https://compulab-cloud.example.com' -- blank = sync disabled, edge-only
+CLOUD_SYNC_API_KEY = 'DTC-SmartComputerLaboratoryManagementSystem'  # shared secret with the cloud server's /api/sync/ endpoint
 CLOUD_SYNC_INTERVAL_SECONDS = 60
 CLOUD_SYNC_TIMEOUT_SECONDS = 5
+CLOUD_SYNC_ROLE = 'edge'
 
 # How many days' worth of activity_log_backups/*.xlsx files to keep before
 # those are pruned too, so the backup folder doesn't grow forever either.

@@ -44,6 +44,9 @@ SETTING_FIELD_BY_TYPE = {
 }
 
 
+from cloud_sync.deferral import defer_until_confirmed
+
+
 def _event_enabled(notification_type):
     field = SETTING_FIELD_BY_TYPE.get(notification_type)
     if not field:
@@ -155,6 +158,7 @@ def notify_reservation_submitted(session_request):
     )
 
 
+@defer_until_confirmed
 def notify_reservation_approved(session_request, code):
     req = session_request
     recipients = []
@@ -201,6 +205,7 @@ def notify_walkin_override_approved(session_request, code):
     )
 
 
+@defer_until_confirmed
 def notify_roster_session_scheduled(session, code):
     """Sent 1 hour before a roster-auto-generated Session starts (see
     notifications.reminders.check_roster_code_reminders) — this is how the

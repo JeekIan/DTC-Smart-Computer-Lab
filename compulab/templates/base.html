@@ -712,13 +712,16 @@ function compulabConfirmSubmit(form, options) {
     }
   };
   if (typeof Swal === 'undefined') {
-    if (confirm(options.text || 'Are you sure?')) doSubmit();
+    if (confirm(options.text || (options.html || '').replace(/<[^>]*>/g, ' ') || 'Are you sure?')) doSubmit();
     return;
   }
   var theme = compulabSwalTheme();
   Swal.fire({
     title: options.title || 'Are you sure?',
-    text: options.text || '',
+    // `html` is for trusted, template-authored markup only (<br>, <span>).
+    // `text` stays plain text so user-supplied names can't inject HTML.
+    text: options.html ? undefined : (options.text || ''),
+    html: options.html || undefined,
     icon: options.icon || 'warning',
     showCancelButton: true,
     confirmButtonText: options.confirmButtonText || 'Yes, continue',
